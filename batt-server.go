@@ -2,7 +2,7 @@
 package main
 
 import (
-  "fmt"
+//  "fmt"
   "log"
   "net/http"
   )
@@ -15,10 +15,10 @@ func main() {
 //	fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
 //})
 
-http.Handle("/", mainpage)
+http.HandleFunc("/", mainpage)
 
 
-log.Fatal(http.ListenAndServe(":8080", nil))
+log.Fatal(http.ListenAndServe(":1721", nil))
 }
 
 func mainpage(w http.ResponseWriter, r *http.Request) {
