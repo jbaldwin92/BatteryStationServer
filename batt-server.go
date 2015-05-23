@@ -23,6 +23,7 @@ log.Fatal(http.ListenAndServe(":1721", nil))
 
 func mainpage(w http.ResponseWriter, r *http.Request) {
 str1 := `<b>Batt Server</b>
+<br>
 Eventually, you can choose which power source to use.
 <br>
 Eventually, you can see the battery voltages and state of charge.
