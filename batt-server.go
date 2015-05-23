@@ -22,5 +22,14 @@ log.Fatal(http.ListenAndServe(":1721", nil))
 }
 
 func mainpage(w http.ResponseWriter, r *http.Request) {
- w.Write([]byte("Main Page"))
+str1 = `<b>Batt Server</b>
+Eventually, you can choose which power source to use.
+<br>
+Eventually, you can see the battery voltages and state of charge.
+<br>
+Eventually, you can see some power use plots, and see how much peak power has been saved.
+<br>
+Eventually, you can set the time when batteries are used, and the time when batteries are charged.`
+
+w.Write([]byte(str1))
 }
