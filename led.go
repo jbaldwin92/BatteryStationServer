@@ -106,11 +106,15 @@ var analogPins = map[string]string{
 func main() {
   led_init()
   analog_init()
-<<<<<<< HEAD
+
+
+
+
+
   pinMode("P9_31","INPUT")
-=======
+
   pwm_init("P8_13")
->>>>>>> b6f521ec5e89f1c2e29ccdaba0e8e8dfa7f0ac39
+>>>> b6f521ec5e89f1c2e29ccdaba0e8e8dfa7f0ac39
   var value float64
   var value2 string
   for i:=0; i<10; i++ {
