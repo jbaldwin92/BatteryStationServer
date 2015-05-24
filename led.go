@@ -158,12 +158,14 @@ func digitalRead(pinName string) string {
   pin := pins[pinName]
   pin_str := strconv.Itoa(pin)
   val,_ := ioutil.ReadFile("/sys/class/gpio/gpio"+pin_str+"/value")
+  vals := byteArrayToString(val)
   var val_str string
-  if val==byte("1") {
+  if vals=="1" {
     val_str = "HIGH"
-  } else if val==byte("0") {
+  } else if vals=="0" {
     val_str = "LOW"
   } else {
+    val_str = "ERROR"
     //TODO err
   }
   return val_str  //returns "HIGH" or "LOW"
@@ -185,11 +187,16 @@ func analogRead(pinName string) float64 {
   pin_str := analogPins[pinName] 
   val,_ := ioutil.ReadFile("/sys/devices/ocp.*/helper.*/"+pin_str)
   //transform val into other types
-  n := bytes.Index(val, []byte{0})
-  vals := string(byteArray[:n])
+  vals := byteArrayToString(val)
   valint,_ := strconv.Atoi(vals)
   val64 := float64(valint)/1000.0
   return val64
+}
+
+func byteArrayToString(input []byte) string {
+  n := bytes.Index(input, []byte{0})
+  output := string(input[:n])
+  return output
 }
 
 //initialize the leds; turn them all off and set the trigger to "none"
