@@ -1,6 +1,7 @@
 package main
 
 import (
+  "fmt"
   "io/ioutil"
   "strconv"
   "time"
@@ -123,7 +124,7 @@ func pinMode(pinName string, direction string) {
  pin := pins[pinName]  //gets the integer from the pin list
  pin_str := strconv.Itoa(pin)
  //export the pin
- ioutil.WriteFile("/sys/class/gpio/export",[]byte(trig),0444)
+ ioutil.WriteFile("/sys/class/gpio/export",[]byte(pin_str),0444)
  //set the direction
  var dir string
  if direction=="OUTPUT" {
@@ -153,14 +154,14 @@ func digitalWrite(pinName string, value string) {
 }
 
 //Read a HIGH or LOW result, for a pin that's an input. pinName should be (for example) "P9_20".
-func digitalWrite(pinName string) string {
+func digitalRead(pinName string) string {
   pin := pins[pinName]
   pin_str := strconv.Itoa(pin)
   val,_ := ioutil.ReadFile("/sys/class/gpio/gpio"+pin_str+"/value")
-  var val_str str
-  if val=="1" {
+  var val_str string
+  if val==[]byte("1") {
     val_str = "HIGH"
-  } else if val=="0" {
+  } else if val==[]byte("0") {
     val_str = "LOW"
   } else {
     //TODO err
@@ -183,7 +184,8 @@ func analog_init() {
 func analogRead(pinName string) float64 {
   pin_str := analogPins[pinName] 
   val,_ := ioutil.ReadFile("/sys/devices/ocp.*/helper.*/"+pin_str)
-  val64 := float64(strconv.Atoi(val))/1000.0
+  valint,_ := strconv.Atoi(val)
+  val64 := float64(valint)/1000.0
   return val64
 }
 
@@ -192,7 +194,7 @@ func led_init() {
   var s string
   for i:=0; i<4; i++ {
     s = strconv.Itoa(i)
-    trigger(s,none)
+    trigger(s,"none")
     led_off(s)
   }
 }
