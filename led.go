@@ -106,18 +106,11 @@ var analogPins = map[string]string{
 func main() {
   led_init()
   analog_init()
-
-
-
-
-
   pinMode("P9_31","INPUT")
-
   pwm_init("P8_13")
->>>> b6f521ec5e89f1c2e29ccdaba0e8e8dfa7f0ac39
   var value float64
   var value2 string
-  for i:=0; i<10; i++ {
+  for i:=0; i<2; i++ {
     led_off("1")
     led_on("0")
     time.Sleep(time.Second*1)
@@ -130,7 +123,7 @@ func main() {
     fmt.Println(value2)
   }
   led_off("1")
-  analogWrite("P8_13",0.5,3000)
+  analogWrite("P8_13",0,5000000)
 }
 //Initialize pulse width modulation
 func pwm_init(pinName string) {
@@ -201,19 +194,19 @@ func digitalRead(pinName string) string {
 //These get translated before being written to the bbb
 //note: max pwm freq is around 9 MHz
 func analogWrite(pinName string, dc float64, freq float64) {
-  pin := pins[pinName] 
-  pin_str := strconv.Itoa(pin)
   //what's the period? In nanoseconds
   period := 1/freq*1000000000.0  //float64
   duty := dc * period
+fmt.Println(int(period))
+fmt.Println(int(duty))
   //This function assumes a positive polarity. Voltage starts at 3.3v and stays until the end of the duty time
   //duty and period are in nanoseconds. duty must be less than period
-  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pin_str+".*/duty",[]byte("0"),0444)
-  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pin_str+".*/period",[]byte("0",0444)
-  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pin_str+".*/run",[]byte("1"),0444)
-  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pin_str+".*/polarity",[]byte("1"),0444)
-  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pin_str+".*/period",[]byte(strconv.Itoa(int(period))),0444)
-  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pin_str+".*/duty",[]byte(strconv.Itoa(int(duty))),0444)
+  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pinName+".16/duty",[]byte("0"),0444)
+  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pinName+".16/period",[]byte("0"),0444)
+  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pinName+".16/run",[]byte("1"),0444)
+  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pinName+".16/polarity",[]byte("1"),0444)
+  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pinName+".16/period",[]byte(strconv.Itoa(int(period))),0444)
+  ioutil.WriteFile("/sys/devices/ocp.3/pwm_test_"+pinName+".16/duty",[]byte(strconv.Itoa(int(duty))),0444)
 }
 
 //configure for analog out
