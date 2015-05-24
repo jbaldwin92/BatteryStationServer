@@ -103,6 +103,8 @@ var analogPins = map[string]string{
 
 func main() {
   led_init()
+  analog_init()
+  var value float64
   for i:=0; i<10; i++ {
     led_off("1")
     led_on("0")
@@ -110,6 +112,8 @@ func main() {
     led_on("1")
     led_off("0")
     time.Sleep(time.Second*1)
+    value = analogRead("P9_39")
+    fmt.Println(value)
   }
   led_off("1")
 }
