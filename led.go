@@ -1,10 +1,10 @@
 package main
 
 import (
-  "bytes"
   "fmt"
   "io/ioutil"
   "strconv"
+  "strings"
   "time"
 )
 //Global Variables
@@ -186,19 +186,28 @@ func analog_init() {
 //returns a value that is 0-1.8v
 func analogRead(pinName string) float64 {
   pin_str := analogPins[pinName] 
-  val,_ := ioutil.ReadFile("/sys/devices/ocp.*/helper.*/"+pin_str)
+  val,_ := ioutil.ReadFile("/sys/devices/ocp.3/helper.15/"+pin_str)
   //transform val into other types
   vals := byteArrayToString(val)
-  valint,_ := strconv.Atoi(vals)
+  valint,err := strconv.Atoi(vals)
+  if err != nil { 
+    fmt.Println(err)
+  }
   val64 := float64(valint)/1000.0
   return val64
 }
 
 func byteArrayToString(input []byte) string {
-  n := bytes.Index(input, []byte{0})
-  output := string(input[:n])
-  return output
+  n := -1
+  for i,b := range input {
+    if b == 0 {
+      break
+    }
+    n=i
+ }
+  return strings.TrimSpace(string(input[:n+1]))
 }
+
 
 //initialize the leds; turn them all off and set the trigger to "none"
 func led_init() {
