@@ -106,8 +106,10 @@ var analogPins = map[string]string{
 func main() {
   led_init()
   analog_init()
+  pinMode("P9_31","INPUT")
   pwm_init("P8_13")
   var value float64
+  var value2 string
   for i:=0; i<10; i++ {
     led_off("1")
     led_on("0")
@@ -116,7 +118,9 @@ func main() {
     led_off("0")
     time.Sleep(time.Second*1)
     value = analogRead("P9_39")
+    value2 = digitalRead("P9_31")
     fmt.Println(value)
+    fmt.Println(value2)
   }
   led_off("1")
   analogWrite("P8_13",0.5,3000)
