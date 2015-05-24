@@ -159,9 +159,9 @@ func digitalRead(pinName string) string {
   pin_str := strconv.Itoa(pin)
   val,_ := ioutil.ReadFile("/sys/class/gpio/gpio"+pin_str+"/value")
   var val_str string
-  if val==[]byte("1") {
+  if val==byte("1") {
     val_str = "HIGH"
-  } else if val==[]byte("0") {
+  } else if val==byte("0") {
     val_str = "LOW"
   } else {
     //TODO err
@@ -184,7 +184,10 @@ func analog_init() {
 func analogRead(pinName string) float64 {
   pin_str := analogPins[pinName] 
   val,_ := ioutil.ReadFile("/sys/devices/ocp.*/helper.*/"+pin_str)
-  valint,_ := strconv.Atoi(val)
+  //transform val into other types
+  n := bytes.Index(val, []byte{0})
+  vals := string(byteArray[:n])
+  valint,_ := strconv.Atoi(vals)
   val64 := float64(valint)/1000.0
   return val64
 }
