@@ -106,24 +106,25 @@ var analogPins = map[string]string{
 func main() {
   led_init()
   analog_init()
-  pinMode("P9_31","INPUT")
-  pwm_init("P8_13")
-  var value float64
-  var value2 string
-  for i:=0; i<2; i++ {
+  var value1, value2 float64
+  var values1, values2 string
+  for i:=0; i<5000; i++ {
     led_off("1")
     led_on("0")
-    time.Sleep(time.Second*1)
+    time.Sleep(time.Second*2)
     led_on("1")
     led_off("0")
-    time.Sleep(time.Second*1)
-    value = analogRead("P9_39")
-    value2 = digitalRead("P9_31")
-    fmt.Println(value)
-    fmt.Println(value2)
+    time.Sleep(time.Second*2)
+    value1 = analogReadN("P9_39",200) * 70.82  //36v conversion factor to volts
+    value2 = analogReadN("P9_37",200) * 1  //12v
+    values1 = strconv.FormatFloat(value1,'f',2,64)
+    values2 = strconv.FormatFloat(value2,'f',2,64)
+    fmt.Println(values1)
+    fmt.Println(values2)
+    fmt.Println("------")
   }
   led_off("1")
-  analogWrite("P8_13",0,5000000)
+  led_off("0")
 }
 //Initialize pulse width modulation
 func pwm_init(pinName string) {
@@ -211,21 +212,46 @@ fmt.Println(int(duty))
 
 //configure for analog out
 func analog_init() {
-  ioutil.WriteFile("/sys/devices/bone_capemgr.*/slots",[]byte("cape-bone-iio"),0444)
+  ioutil.WriteFile("/sys/devices/bone_capemgr.9/slots",[]byte("cape-bone-iio"),0444)
 }
 //returns a value that is 0-1.8v
 func analogRead(pinName string) float64 {
   pin_str := analogPins[pinName] 
-  val,_ := ioutil.ReadFile("/sys/devices/ocp.3/helper.15/"+pin_str)
+  val,err0 := ioutil.ReadFile("/sys/devices/ocp.3/helper.15/"+pin_str)
+  if err0 != nil {
+    //Sometimes there's a resource conflict.
+  }
   //transform val into other types
   vals := byteArrayToString(val)
   valint,err := strconv.Atoi(vals)
   if err != nil { 
-    fmt.Println(err)
+    //sometimes there's a resource conflict
   }
   val64 := float64(valint)/1000.0
+  if err0 != nil {  //if there was an error from reading a file
+    val64=-12345678.9
+  }
   return val64
 }
+
+//Reads n samples from a pin and reports the mean value
+func analogReadN(pinName string, n int) float64 {
+  var newvalue float64
+  counter := 0.000000000001  //to avoid divide by zero errors
+  total := 0.0
+  for i:=0; i<n; i++ {  //loop thru n times
+    newvalue = analogRead(pinName)
+    if newvalue != -12345678.9 {
+       counter=counter+1.0
+    } else {
+       newvalue = 0 //this keeps the average from being affected by bad data
+    }
+    total = total + newvalue
+  }
+  total = total / counter
+  return total
+}
+
 
 func byteArrayToString(input []byte) string {
   n := -1
