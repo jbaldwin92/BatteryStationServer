@@ -2,9 +2,7 @@ package main
 
 import (
   "fmt"
-  "io/ioutil"
   "strconv"
-  "strings"
   "time"
   "github.com/jbaldwin92/bbb_io"   //bbb io functions
 )
