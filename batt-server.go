@@ -21,7 +21,6 @@ import (
 
 //------Functions
 func main() {
-
         //Initialize the pins
 	bbb_io.Analog_init()
         bbb_io.PinMode(SW[0],"OUTPUT")
@@ -41,6 +40,10 @@ func main() {
 
 //-----------------------------------------------------
 func mainpage(w http.ResponseWriter, r *http.Request) {
+        //Set up the time
+        const layout="Jan 2, 2006 at 3:04pm (MST)"
+        t := time.Now()        
+
 
 	SOC1 := 0.00
         SOC1s := ""
@@ -64,7 +67,12 @@ Eventually, you can see some power use plots, and see how much peak power has be
 <br>
 Eventually, you can set the time when batteries are used, and the time when batteries are charged.
 <br>
+<br>
 <table>
+<tr>
+  <td>Time</td>
+  <td>[[TIME]]</td>
+  <td></td>
 <tr>
 <th COLSPAN=3>Battery 1</th></tr>
 <tr>
@@ -103,6 +111,7 @@ Eventually, you can set the time when batteries are used, and the time when batt
         str1 = strings.Replace(str1, "[[SOC1]]", SOC1s, -1)
    	str1 = strings.Replace(str1, "[[CHARGE1]]", "Charger Off", -1)
         str1 = strings.Replace(str1, "[[DISCHARGE1]]", "Supplying Power", -1)
+        str1 = strings.Replace(str1, "[[TIME]]", t.Format(layout), -1)
 
 	w.Write([]byte(str1))
 }
