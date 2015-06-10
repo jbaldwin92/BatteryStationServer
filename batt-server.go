@@ -14,7 +14,7 @@ import (
         //analog pins
         var AIN []string = []string{"P9_39","P9_40","P9_37","P9_38","P9_33","P9_36","P9_35"}
         //calibration factors: AIN x K = Output
-        var K []float64 = []float64{70.82,105.82,1,1,1,1,1}
+        var K []float64 = []float64{71.85,105.82,1,1,1,1,1}
         //GPIO pins for switching chargers and dischargers
         var SW []string = []string{"P9_11"}
 
@@ -88,7 +88,7 @@ Eventually, you can set the time when batteries are used, and the time when batt
 <tr>
   <td>State of Charge</td>
   <td>[[SOC1]]%</td>
-  <td></td>
+  <td>41.70V is about 100%</td>
 </tr>
 <tr>
   <td>Charge</td>
@@ -124,9 +124,12 @@ func SOC(batType string, n int, v float64) float64 {
   v_cell := v/float64(n)  //voltage per cell
   if batType=="LiFePO4" {
     if v_cell>3.8 {
-      SOC=100.0
+      SOC=100.01
+    } else if v_cell>3.475 {  //this is unique to my charger, which charges to 3.5v/cell
+      SOC=99.99
     } else if v_cell > 3.3 {
-      SOC = 100 - (3.8 - v_cell) / (3.8-3.3) * (100.0-90.0)
+      //SOC = 100 - (3.8 - v_cell) / (3.8-3.3) * (100.0-90.0)  //this is the general value
+      SOC = 100 - (3.475 - v_cell) / (3.475-3.3) * (100 - 90.0)  //unique to my charger
     } else if v_cell > 3.2 {
       SOC = 90 - (3.3 - v_cell) / (3.3-3.2) * (90.0 - 20.0)
     } else if v_cell > 2.0 {
