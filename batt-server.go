@@ -19,7 +19,8 @@ import (
         var Cells []int64 = []int64{12,1,1,1,1,1,1}
         //GPIO pins for switching chargers and dischargers
         var SW []string = []string{"P9_11"}
-
+        //Values
+        var old_values []string = []string{}
 
 //------Functions
 func main() {
@@ -28,6 +29,8 @@ func main() {
         bbb_io.PinMode(SW[0],"OUTPUT")
         //startup the datalogger (runs in parallel)
         go v_logger()
+        //startup the on & off timer
+        go charging_timer()
 
 	// Some Examples
 	//http.Handle("/foo", fooHandler)
@@ -65,7 +68,13 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 //TODO: turn off charger before turning on discharger
 //TODO: discharge switch
 	//Now write out the page
-	str1 := `<h1>Batt Server</h1>
+	str1 := `<html>
+<head>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://dimplejs.org/dist/dimple.v2.1.2.min.js"></script>
+</head>
+<body>
+<h1>Batt Server</h1>
 <br>
 Eventually, you can see some power use plots, and see how much peak power has been saved.
 <br>
@@ -106,18 +115,49 @@ Eventually, you can set the time when batteries are used, and the time when batt
 </tr>
 </table>
 <a href="/">refresh</a>
+<br>
+<br>
+[[OLD_VALUES]]
+<div id="chartContainer">
+<script type="text/javascript">
+var svg = dimple.newSvg("#chartContainer",590,400);
+var data = [
+ {"X":"1","Y":"2.5" },
+ {"X":"3.2","Y":"53" }
+];
+var chart = new dimple.chart(svg,data);
+chart.setBounds(60,30,510,305)
+chart.addCategoryAxis("x","X");
+chart.addMeasureAxis("y","Y");
+chart.addSeries(null,dimple.plot.line);
+chart.draw();
+</script>
+</div>
+
+</body>
+</html>
 `
         //calculate the SOC
         SOC1 = SOC("LiFePO4",Cells[0],volt[0]*K[0])
         SOC1s = strconv.FormatFloat(SOC1,'f',2,64)
+        chargerSwitch := bbb_io.DigitalRead("P9_11") 
+        //put the old values into a long string
+        var old_values_list string
+        for _,v := range(old_values) {
+          old_values_list = old_values_list + v + "<br>\n"
+        }	
 	//do the string substitutions
 	str1 = strings.Replace(str1, "[[VOLTAGE1]]", volts[0], -1)
         str1 = strings.Replace(str1, "[[VOLTAGE1_CELL]]", volts_cell[0], -1)
         str1 = strings.Replace(str1, "[[SOC1]]", SOC1s, -1)
-   	str1 = strings.Replace(str1, "[[CHARGE1]]", "Charger Off", -1)
+   	if chargerSwitch == "LOW" {
+          str1 = strings.Replace(str1, "[[CHARGE1]]", "Charger is Off", -1)
+        } else {
+          str1 = strings.Replace(str1, "[[CHARGE1]]", "Charger is On", -1)
+        }
         str1 = strings.Replace(str1, "[[DISCHARGE1]]", "Supplying Power", -1)
         str1 = strings.Replace(str1, "[[TIME]]", t.Format(layout), -1)
-
+        str1 = strings.Replace(str1, "[[OLD_VALUES]]", old_values_list, -1)
 	w.Write([]byte(str1))
 }
 
@@ -150,8 +190,51 @@ func SOC(batType string, n int64, v float64) float64 {
 
 //Data logger
 func v_logger() {
+  var voltage float64
+  var voltages string
   for {
-    fmt.Println(bbb_io.AnalogReadN(AIN[0],100)*K[0])
-    time.Sleep(time.Second*2)
+    voltage = bbb_io.AnalogReadN(AIN[0],100)*K[0]
+    voltages = strconv.FormatFloat(voltage,'f',4,64)
+    fmt.Println(voltage)
+    old_values = append(old_values,voltages)
+    time.Sleep(time.Second*15)
   }
 }  
+
+
+//Turn on and off the switch at a certain time
+func charging_timer() {
+  phase := "off"
+  h_on := 1
+  m_on := 0
+  s_on := 0
+  h_off := 9
+  m_off := 0
+  s_off :=0
+  t := time.Now()
+  h,m,s := t.Clock()
+  for {
+    t = time.Now()
+    h,m,s = t.Clock()
+    //is it time to turn on the charger?
+    if phase == "off" {
+      if h >= h_on {
+      if m >= m_on {
+      if s >= s_on {
+        phase = "on"
+        bbb_io.DigitalWrite(SW[0],"HIGH") //turn it on 
+      }}}
+    }
+    //is it time to turn off the charger?      
+    if phase == "on" {
+      if h >= h_off {
+      if m >= m_off {
+      if s >= s_off {
+        phase = "off"
+        bbb_io.DigitalWrite(SW[0],"LOW") 
+      }}}
+    }
+    time.Sleep(time.Second*1)
+  }
+} 
+    
