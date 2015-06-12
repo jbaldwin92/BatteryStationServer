@@ -30,7 +30,7 @@ func main() {
         //startup the datalogger (runs in parallel)
         go v_logger()
         //startup the on & off timer
-        go charging_timer()
+        //go charging_timer()
 
 	// Some Examples
 	//http.Handle("/foo", fooHandler)
@@ -68,10 +68,12 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 //TODO: turn off charger before turning on discharger
 //TODO: discharge switch
 	//Now write out the page
-	str1 := `<html>
+	str1 := `<!DOCTYPE html>
+<html>
 <head>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://dimplejs.org/dist/dimple.v2.1.2.min.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
 </head>
 <body>
 <h1>Batt Server</h1>
@@ -117,13 +119,11 @@ Eventually, you can set the time when batteries are used, and the time when batt
 <a href="/">refresh</a>
 <br>
 <br>
-[[OLD_VALUES]]
 <div id="chartContainer">
 <script type="text/javascript">
 var svg = dimple.newSvg("#chartContainer",590,400);
 var data = [
- {"X":"1","Y":"2.5" },
- {"X":"3.2","Y":"53" }
+ [[OLD_VALUES]]
 ];
 var chart = new dimple.chart(svg,data);
 chart.setBounds(60,30,510,305)
@@ -133,6 +133,19 @@ chart.addSeries(null,dimple.plot.line);
 chart.draw();
 </script>
 </div>
+<div id="chartContainer2" style="width:590px; height:400px; border:1px;"></div>
+<script type="text/javascript">
+g = new Dygraph(
+  document.getElementById("chartContainer2"),
+  [
+    [1,1.4],
+    [2,2.4],
+    [3,3.3]
+  ],
+   { }
+);
+</script>
+
 
 </body>
 </html>
@@ -143,8 +156,11 @@ chart.draw();
         chargerSwitch := bbb_io.DigitalRead("P9_11") 
         //put the old values into a long string
         var old_values_list string
-        for _,v := range(old_values) {
-          old_values_list = old_values_list + v + "<br>\n"
+        for i,v := range(old_values) {
+          old_values_list = old_values_list + "{ \"X\":"+strconv.Itoa(i)+",\"Y\": " +v+"}"
+          if i!=len(old_values) -1 {
+            old_values_list = old_values_list + ","
+          } 
         }	
 	//do the string substitutions
 	str1 = strings.Replace(str1, "[[VOLTAGE1]]", volts[0], -1)
