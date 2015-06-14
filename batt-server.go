@@ -1,4 +1,4 @@
-//The main webserver
+//The main webserver 
 package main
 
 import (
@@ -16,11 +16,15 @@ import (
         //calibration factors: AIN x K = Output
         var K []float64 = []float64{71.85,105.82,1,1,1,1,1}
         //number of battery cells, for help with the SOC
-        var Cells []int64 = []int64{12,1,1,1,1,1,1}
+        var Cells []int64 = []int64{10,1,1,1,1,1,1}
+        //Battery Type
+        var batteryType []string = []string{"Li-Ion","Pb","","","","",""}
         //GPIO pins for switching chargers and dischargers
         var SW []string = []string{"P9_11"}
         //Values
         var old_values []string = []string{}
+        //Time
+        var time_list []string = []string{}
 
 //------Functions
 func main() {
@@ -71,8 +75,6 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 	str1 := `<!DOCTYPE html>
 <html>
 <head>
-<script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="http://dimplejs.org/dist/dimple.v2.1.2.min.js"></script>
 <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
 </head>
 <body>
@@ -91,8 +93,8 @@ Eventually, you can set the time when batteries are used, and the time when batt
 <tr>
 <th COLSPAN=3>Battery 1</th></tr>
 <tr>
-  <td>LiFePO4</td>
-  <td>12 cells</td>
+  <td>[[BAT_TYPE]]</td>
+  <td>[[NCELLS]] cells</td>
   <td>edit</td>
 </tr>
 <tr>
@@ -119,28 +121,12 @@ Eventually, you can set the time when batteries are used, and the time when batt
 <a href="/">refresh</a>
 <br>
 <br>
-<div id="chartContainer">
-<script type="text/javascript">
-var svg = dimple.newSvg("#chartContainer",590,400);
-var data = [
- [[OLD_VALUES]]
-];
-var chart = new dimple.chart(svg,data);
-chart.setBounds(60,30,510,305)
-chart.addCategoryAxis("x","X");
-chart.addMeasureAxis("y","Y");
-chart.addSeries(null,dimple.plot.line);
-chart.draw();
-</script>
-</div>
 <div id="chartContainer2" style="width:590px; height:400px; border:1px;"></div>
 <script type="text/javascript">
 g = new Dygraph(
   document.getElementById("chartContainer2"),
   [
-    [1,1.4],
-    [2,2.4],
-    [3,3.3]
+    [[PLOT_DATA]]
   ],
    { }
 );
@@ -151,15 +137,15 @@ g = new Dygraph(
 </html>
 `
         //calculate the SOC
-        SOC1 = SOC("LiFePO4",Cells[0],volt[0]*K[0])
+        SOC1 = SOC("Li-Ion",Cells[0],volt[0]*K[0])
         SOC1s = strconv.FormatFloat(SOC1,'f',2,64)
         chargerSwitch := bbb_io.DigitalRead("P9_11") 
         //put the old values into a long string
-        var old_values_list string
+        var plot_data string
         for i,v := range(old_values) {
-          old_values_list = old_values_list + "{ \"X\":"+strconv.Itoa(i)+",\"Y\": " +v+"}"
+          plot_data = plot_data + "[ new Date(\"" + time_list[i]+ "\") ," +v+"]"
           if i!=len(old_values) -1 {
-            old_values_list = old_values_list + ","
+            plot_data = plot_data + ","
           } 
         }	
 	//do the string substitutions
@@ -173,8 +159,10 @@ g = new Dygraph(
         }
         str1 = strings.Replace(str1, "[[DISCHARGE1]]", "Supplying Power", -1)
         str1 = strings.Replace(str1, "[[TIME]]", t.Format(layout), -1)
-        str1 = strings.Replace(str1, "[[OLD_VALUES]]", old_values_list, -1)
-	w.Write([]byte(str1))
+        str1 = strings.Replace(str1, "[[PLOT_DATA]]", plot_data, -1)
+	str1 = strings.Replace(str1, "[[BAT_TYPE]]", batteryType[0], -1)
+        str1 = strings.Replace(str1, "[[NCELLS]]", strconv.Itoa(int(Cells[0])), -1)
+        w.Write([]byte(str1))
 }
 
 //Calculate the State of Charge
@@ -189,14 +177,23 @@ func SOC(batType string, n int64, v float64) float64 {
     } else if v_cell>3.53 {  //this is unique to my charger, which charges to 3.5v/cell
       SOC=99.99
     } else if v_cell > 3.3 {
-      //SOC = 100 - (3.8 - v_cell) / (3.8-3.3) * (100.0-90.0)  //this is the general value
-      SOC = 100 - (3.53 - v_cell) / (3.53-3.3) * (100 - 90.0)  //unique to my charger
+      SOC = 100 - (3.8 - v_cell) / (3.8-3.3) * (100.0-90.0)  //this is the general value
     } else if v_cell > 3.2 {
       SOC = 90 - (3.3 - v_cell) / (3.3-3.2) * (90.0 - 20.0)
     } else if v_cell > 2.0 {
       SOC = 20 - (3.2 - v_cell) / (3.2-2.0) * (20.0 - 0.00)
     } else {
       SOC = 0.00
+    }
+  } else if batType=="Li-Ion" {
+    if v_cell>4.2 {
+      SOC=100.01
+    } else if v_cell>3.95  {  //this is unique to my charger, which charges to 3.5v/cell
+      SOC = 100 - (4.2 - v_cell) / (4.2-3.95) * (100-80) 
+    } else if v_cell > 3.6 {
+      SOC = 80 - (3.95 - v_cell) / (3.95-3.6) * (80.0-10)  //this is the general value
+    } else if v_cell > 2.9 {
+      SOC = 10 - (3.6 - v_cell) / (3.6-2.9) * (10-0)
     }
   } else if batType=="Pb" {
      SOC = 50.0
@@ -213,6 +210,7 @@ func v_logger() {
     voltages = strconv.FormatFloat(voltage,'f',4,64)
     fmt.Println(voltage)
     old_values = append(old_values,voltages)
+    time_list = append(time_list,time.Now().Format("2006-01-02 15:04:05"))
     time.Sleep(time.Second*15)
   }
 }  
