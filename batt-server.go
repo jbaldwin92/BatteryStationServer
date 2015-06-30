@@ -20,17 +20,22 @@ import (
         //Battery Type
         var batteryType []string = []string{"Li-Ion","Pb","","","","",""}
         //GPIO pins for switching chargers and dischargers
-        var SW []string = []string{"P9_11"}
+        var SW []string = []string{"P9_11","P9_13"}  //charge, discharge
         //Values
         var old_values []string = []string{}
         //Time
         var time_list []string = []string{}
+        //Manual On or Off
+//TODO: update the time
+//        var EnableManual int = 0 //=0, rely on timer. =1, rely on "Manual"
+//        var OnOffManual int = 0  //=0, off. =1, on. Must be enabled
 
 //------Functions
 func main() {
         //Initialize the pins
 	bbb_io.Analog_init()
-        bbb_io.PinMode(SW[0],"OUTPUT")
+        bbb_io.PinMode(SW[0], "OUTPUT" )
+        bbb_io.PinMode(SW[1], "OUTPUT" )
         //startup the datalogger (runs in parallel)
         go v_logger()
         //startup the on & off timer
@@ -70,7 +75,8 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
         if r.FormValue("SW0")=="on" { bbb_io.DigitalWrite(SW[0],"HIGH") }
         if r.FormValue("SW0")=="off" { bbb_io.DigitalWrite(SW[0],"LOW") }
 //TODO: turn off charger before turning on discharger
-//TODO: discharge switch
+        if r.FormValue("SW1")=="on" {bbb_io.DigitalWrite(SW[1], "HIGH") }
+        if r.FormValue("SW1")=="off" {bbb_io.DigitalWrite(SW[1],"LOW") }
 	//Now write out the page
 	str1 := `<!DOCTYPE html>
 <html>
@@ -80,7 +86,10 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 <body>
 <h1>Batt Server</h1>
 <br>
-Eventually, you can see some power use plots, and see how much peak power has been saved.
+Don't forget: use 'screen' to keep the web server running. Here's the format:
+<br>
+screen -r [PID]
+just type 'screen -r' to see what the PID number is
 <br>
 Eventually, you can set the time when batteries are used, and the time when batteries are charged.
 <br>
@@ -105,7 +114,7 @@ Eventually, you can set the time when batteries are used, and the time when batt
 <tr>
   <td>State of Charge</td>
   <td>[[SOC1]]%</td>
-  <td>42.35V is about 100%</td>
+  <td>42.35V is about 100%<br>When discharging, the real SOC is 7% higher than shown.</td>
 </tr>
 <tr>
   <td>Charge</td>
@@ -139,7 +148,8 @@ g = new Dygraph(
         //calculate the SOC
         SOC1 = SOC("Li-Ion",Cells[0],volt[0]*K[0])
         SOC1s = strconv.FormatFloat(SOC1,'f',2,64)
-        chargerSwitch := bbb_io.DigitalRead("P9_11") 
+        chargerSwitch := bbb_io.DigitalRead( SW[0] ) 
+        dischargerSwitch := bbb_io.DigitalRead( SW[1] )
         //put the old values into a long string
         var plot_data string
         for i,v := range(old_values) {
@@ -157,7 +167,11 @@ g = new Dygraph(
         } else {
           str1 = strings.Replace(str1, "[[CHARGE1]]", "Charger is On", -1)
         }
-        str1 = strings.Replace(str1, "[[DISCHARGE1]]", "Supplying Power", -1)
+        if dischargerSwitch == "LOW" {
+          str1 = strings.Replace(str1, "[[DISCHARGE1]]", "Not Supplying Power", -1)
+        } else {
+          str1 = strings.Replace(str1, "[[DISCHARGE1]]", "Supplying Power", -1)
+        }
         str1 = strings.Replace(str1, "[[TIME]]", t.Format(layout), -1)
         str1 = strings.Replace(str1, "[[PLOT_DATA]]", plot_data, -1)
 	str1 = strings.Replace(str1, "[[BAT_TYPE]]", batteryType[0], -1)
