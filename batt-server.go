@@ -26,16 +26,24 @@ import (
         //Time
         var time_list []string = []string{}
         //Manual On or Off
-//TODO: update the time
-//        var EnableManual int = 0 //=0, rely on timer. =1, rely on "Manual"
-//        var OnOffManual int = 0  //=0, off. =1, on. Must be enabled
+        //only the hours and minutes and seconds are used (not the year or month or day)
+        var ontime_hour int = 18
+        var ontime_minute int = 30
+        var offtime_hour int = 21
+        var offtime_minute int =00
+        var chargeon_hour int = 21
+        var chargeon_minute int = 2
+        var chargeoff_hour int = 6
+        var chargeoff_minute int = 0 
+        //Minimum State of Charge
+        var StayAboveSOC float64 = 50
 
 //------Functions
 func main() {
         //Initialize the pins
 	bbb_io.Analog_init()
-        bbb_io.PinMode(SW[0], "OUTPUT" )
-        bbb_io.PinMode(SW[1], "OUTPUT" )
+        bbb_io.PinMode(SW[0], "OUTPUT" )  //charger
+        bbb_io.PinMode(SW[1], "OUTPUT" )  //discharger
         //startup the datalogger (runs in parallel)
         go v_logger()
         //startup the on & off timer
@@ -82,10 +90,27 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 <html>
 <head>
 <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
+<script type="text/javascript">
+function reloadfunction() {
+  window.setTimeout(function() {location.assign("/");},15000);
+}
+</script> 
 </head>
-<body>
+<body onload="reloadfunction()">
 <h1>Batt Server</h1>
 <br>
+<div id="chartContainer2" style="width:590px; height:400px; border:1px;"></div>
+<script type="text/javascript">
+g = new Dygraph(
+  document.getElementById("chartContainer2"),
+  [
+    [[PLOT_DATA]]
+  ],
+   { }
+);
+</script>
+
+
 Don't forget: use 'screen' to keep the web server running. Here's the format:
 <br>
 screen -r [PID]
@@ -130,16 +155,6 @@ Eventually, you can set the time when batteries are used, and the time when batt
 <a href="/">refresh</a>
 <br>
 <br>
-<div id="chartContainer2" style="width:590px; height:400px; border:1px;"></div>
-<script type="text/javascript">
-g = new Dygraph(
-  document.getElementById("chartContainer2"),
-  [
-    [[PLOT_DATA]]
-  ],
-   { }
-);
-</script>
 
 
 </body>
@@ -215,17 +230,50 @@ func SOC(batType string, n int64, v float64) float64 {
   return SOC
 }
 
-//Data logger
+//Data logger and watchdog
 func v_logger() {
-  var voltage float64
-  var voltages string
+  var voltage, percent float64
+  var voltages, percents string
+  ontime := ontime_hour * 60 + ontime_minute
+  offtime:= offtime_hour*60 + offtime_minute
+  chargeontime := chargeon_hour * 60 + chargeon_minute
+  chargeofftime := chargeoff_hour * 60 + chargeoff_minute  
+  var nowtime int
+  var t time.Time
   for {
     voltage = bbb_io.AnalogReadN(AIN[0],100)*K[0]
     voltages = strconv.FormatFloat(voltage,'f',4,64)
-    fmt.Println(voltage)
-    old_values = append(old_values,voltages)
+    percent = SOC("Li-Ion", Cells[0], voltage)
+    percents = strconv.FormatFloat(percent,'f',2,64)
+    fmt.Println(voltages+", "+percents+"%")
+    old_values = append(old_values,percents)
     time_list = append(time_list,time.Now().Format("2006-01-02 15:04:05"))
-    time.Sleep(time.Second*15)
+    //check to see if it's time to turn on or off
+    t = time.Now()
+    nowtime = t.Hour() * 60 + t.Minute()  //minutes since midnight
+    if percent > StayAboveSOC {  //then see if it should be turned on 
+      if nowtime < ontime {  //too early, but check to see if it's time to turn off the charger
+         bbb_io.DigitalWrite(SW[1],"LOW")
+         if nowtime > chargeofftime {
+           bbb_io.DigitalWrite(SW[0],"LOW")  //or else just leave it on
+         }
+      } else if nowtime > offtime {  //too late, but check to see if it's time to turn on the charger 
+         bbb_io.DigitalWrite(SW[1],"LOW")
+         if nowtime > chargeontime {
+           bbb_io.DigitalWrite(SW[0],"HIGH")
+         }
+      } else {  //nowtime is between ontime and offtime, turn it on
+         bbb_io.DigitalWrite(SW[0],"LOW")  //make sure charger is off
+         time.Sleep(1*time.Second)
+         bbb_io.DigitalWrite(SW[1],"HIGH") //turn on discharger
+      }
+    } else {  //the SOC is too low, just shut it off
+      bbb_io.DigitalWrite(SW[1],"LOW")
+    }
+    fmt.Println(nowtime)
+    fmt.Println(ontime)
+    fmt.Println(offtime)
+    time.Sleep(time.Second*14)
   }
 }  
 
