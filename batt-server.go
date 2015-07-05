@@ -27,8 +27,8 @@ import (
         var time_list []string = []string{}
         //Manual On or Off
         //only the hours and minutes and seconds are used (not the year or month or day)
-        var ontime_hour int = 18
-        var ontime_minute int = 30
+        var ontime_hour int = 17
+        var ontime_minute int = 59
         var offtime_hour int = 21
         var offtime_minute int =00
         var chargeon_hour int = 21
@@ -92,7 +92,7 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
 <script type="text/javascript">
 function reloadfunction() {
-  window.setTimeout(function() {location.assign("/");},15000);
+  window.setTimeout(function() {location.assign("/");},60000);
 }
 </script> 
 </head>
@@ -111,13 +111,6 @@ g = new Dygraph(
 </script>
 
 
-Don't forget: use 'screen' to keep the web server running. Here's the format:
-<br>
-screen -r [PID]
-just type 'screen -r' to see what the PID number is
-<br>
-Eventually, you can set the time when batteries are used, and the time when batteries are charged.
-<br>
 <br>
 <table>
 <tr>
@@ -154,6 +147,13 @@ Eventually, you can set the time when batteries are used, and the time when batt
 </table>
 <a href="/">refresh</a>
 <br>
+<br>
+Don't forget: use 'screen' to keep the web server running. Here's the format:
+<br>
+screen -r [PID]
+just type 'screen -r' to see what the PID number is
+<br>
+Eventually, you can set the time when batteries are used, and the time when batteries are charged.
 <br>
 
 
@@ -238,21 +238,26 @@ func v_logger() {
   offtime:= offtime_hour*60 + offtime_minute
   chargeontime := chargeon_hour * 60 + chargeon_minute
   chargeofftime := chargeoff_hour * 60 + chargeoff_minute  
+  StayAboveSOC1 := StayAboveSOC //this leaves the global variable untouched
   var nowtime int
   var t time.Time
   for {
-    voltage = bbb_io.AnalogReadN(AIN[0],100)*K[0]
+    voltage = bbb_io.AnalogReadN(AIN[0],200)*K[0]
     voltages = strconv.FormatFloat(voltage,'f',4,64)
     percent = SOC("Li-Ion", Cells[0], voltage)
     percents = strconv.FormatFloat(percent,'f',2,64)
     fmt.Println(voltages+", "+percents+"%")
     old_values = append(old_values,percents)
+    if len(old_values)>1500 {
+      old_values = old_values[1:]  //this keeps the file from getting too big
+    }
     time_list = append(time_list,time.Now().Format("2006-01-02 15:04:05"))
     //check to see if it's time to turn on or off
     t = time.Now()
     nowtime = t.Hour() * 60 + t.Minute()  //minutes since midnight
-    if percent > StayAboveSOC {  //then see if it should be turned on 
+    if percent > StayAboveSOC1 {  //then see if it should be turned on 
       if nowtime < ontime {  //too early, but check to see if it's time to turn off the charger
+         StayAboveSOC1 = StayAboveSOC  //resets this at midnight, if needed
          bbb_io.DigitalWrite(SW[1],"LOW")
          if nowtime > chargeofftime {
            bbb_io.DigitalWrite(SW[0],"LOW")  //or else just leave it on
@@ -268,12 +273,13 @@ func v_logger() {
          bbb_io.DigitalWrite(SW[1],"HIGH") //turn on discharger
       }
     } else {  //the SOC is too low, just shut it off
-      bbb_io.DigitalWrite(SW[1],"LOW")
+      StayAboveSOC1 = 200  //this keeps the system from bouncing on and off at the lower limit
+      bbb_io.DigitalWrite(SW[1], "LOW")  //turn off the discharger for the rest of the day
     }
     fmt.Println(nowtime)
     fmt.Println(ontime)
     fmt.Println(offtime)
-    time.Sleep(time.Second*14)
+    time.Sleep(time.Second*4)
   }
 }  
 
