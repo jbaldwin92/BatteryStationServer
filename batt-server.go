@@ -26,9 +26,9 @@ import (
         //Time
         var time_list []string = []string{}
         //Manual On or Off
-        //only the hours and minutes and seconds are used (not the year or month or day)
-        var ontime_hour int = 17
-        var ontime_minute int = 59
+        //only the hours and minutes are used (not the year or month or day)
+        var ontime_hour int = 13
+        var ontime_minute int = 00
         var offtime_hour int = 21
         var offtime_minute int =00
         var chargeon_hour int = 21
@@ -36,7 +36,7 @@ import (
         var chargeoff_hour int = 6
         var chargeoff_minute int = 0 
         //Minimum State of Charge
-        var StayAboveSOC float64 = 50
+        var StayAboveSOC float64 = 41  //this keeps it above about 50%
 
 //------Functions
 func main() {
@@ -99,7 +99,7 @@ function reloadfunction() {
 <body onload="reloadfunction()">
 <h1>Batt Server</h1>
 <br>
-<div id="chartContainer2" style="width:590px; height:400px; border:1px;"></div>
+<div id="chartContainer2" style="width:600px; height:300px; border:1px;"></div>
 <script type="text/javascript">
 g = new Dygraph(
   document.getElementById("chartContainer2"),
@@ -218,9 +218,9 @@ func SOC(batType string, n int64, v float64) float64 {
     if v_cell>4.2 {
       SOC=100.01
     } else if v_cell>3.95  {  //this is unique to my charger, which charges to 3.5v/cell
-      SOC = 100 - (4.2 - v_cell) / (4.2-3.95) * (100-80) 
+      SOC = 100 - (4.2 - v_cell) / (4.2-3.95) * (100-75) 
     } else if v_cell > 3.6 {
-      SOC = 80 - (3.95 - v_cell) / (3.95-3.6) * (80.0-10)  //this is the general value
+      SOC = 75 - (3.95 - v_cell) / (3.95-3.6) * (75.0-10)  //this is the general value
     } else if v_cell > 2.9 {
       SOC = 10 - (3.6 - v_cell) / (3.6-2.9) * (10-0)
     }
@@ -248,10 +248,11 @@ func v_logger() {
     percents = strconv.FormatFloat(percent,'f',2,64)
     fmt.Println(voltages+", "+percents+"%")
     old_values = append(old_values,percents)
+    time_list = append(time_list,time.Now().Format("2006-01-02 15:04:05"))
     if len(old_values)>1500 {
       old_values = old_values[1:]  //this keeps the file from getting too big
+      time_list = time_list[1:]
     }
-    time_list = append(time_list,time.Now().Format("2006-01-02 15:04:05"))
     //check to see if it's time to turn on or off
     t = time.Now()
     nowtime = t.Hour() * 60 + t.Minute()  //minutes since midnight
@@ -264,7 +265,7 @@ func v_logger() {
          }
       } else if nowtime > offtime {  //too late, but check to see if it's time to turn on the charger 
          bbb_io.DigitalWrite(SW[1],"LOW")
-         if nowtime > chargeontime {
+         if nowtime > chargeontime {  //turn on the charger
            bbb_io.DigitalWrite(SW[0],"HIGH")
          }
       } else {  //nowtime is between ontime and offtime, turn it on
@@ -275,11 +276,15 @@ func v_logger() {
     } else {  //the SOC is too low, just shut it off
       StayAboveSOC1 = 200  //this keeps the system from bouncing on and off at the lower limit
       bbb_io.DigitalWrite(SW[1], "LOW")  //turn off the discharger for the rest of the day
+      if nowtime > chargeontime {  //but turn on the charger if it's time
+           bbb_io.DigitalWrite(SW[0],"HIGH")  //turn on the charger
+      }        
     }
     fmt.Println(nowtime)
     fmt.Println(ontime)
     fmt.Println(offtime)
-    time.Sleep(time.Second*4)
+    fmt.Println(StayAboveSOC1)
+    time.Sleep(time.Second*15)
   }
 }  
 
