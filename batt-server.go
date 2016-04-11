@@ -89,6 +89,12 @@ func mainpage(w http.ResponseWriter, r *http.Request) {
 	str1 := `<!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home</title>
+
+
 <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
 <script type="text/javascript">
 function reloadfunction() {
@@ -218,9 +224,9 @@ func SOC(batType string, n int64, v float64) float64 {
     if v_cell>4.2 {
       SOC=100.01
     } else if v_cell>3.95  {  //this is unique to my charger, which charges to 3.5v/cell
-      SOC = 100 - (4.2 - v_cell) / (4.2-3.95) * (100-75) 
+      SOC = 100 - (4.2 - v_cell) / (4.2-3.95) * (100-70) 
     } else if v_cell > 3.6 {
-      SOC = 75 - (3.95 - v_cell) / (3.95-3.6) * (75.0-10)  //this is the general value
+      SOC = 70 - (3.95 - v_cell) / (3.95-3.6) * (70.0-10)  //this is the general value
     } else if v_cell > 2.9 {
       SOC = 10 - (3.6 - v_cell) / (3.6-2.9) * (10-0)
     }
@@ -275,6 +281,11 @@ func v_logger() {
       }
     } else {  //the SOC is too low, just shut it off
       StayAboveSOC1 = 200  //this keeps the system from bouncing on and off at the lower limit
+      if nowtime > ontime {  
+        StayAboveSOC1 = 200 //make sure it doesn't turn back on
+      } else {  //then it's after midnight but before the ontime
+        StayAboveSOC1 = StayAboveSOC  //reset the variable to the global variable value
+      }
       bbb_io.DigitalWrite(SW[1], "LOW")  //turn off the discharger for the rest of the day
       if nowtime > chargeontime {  //but turn on the charger if it's time
            bbb_io.DigitalWrite(SW[0],"HIGH")  //turn on the charger
@@ -325,3 +336,4 @@ func charging_timer() {
   }
 } 
     
+
